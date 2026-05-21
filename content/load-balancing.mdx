@@ -1,0 +1,397 @@
+---
+title: "Load Balancing"
+description: "An introduction to load balancing, scaling strategies, routing policies, consistent hashing, and fault tolerance in distributed systems."
+tags: ["Networking", "Load Balancing", "Distributed Systems", "Scalability", "Infrastructure"]
+---
+
+## Introduction
+
+As applications grow, a single server eventually becomes unable to handle increasing traffic.
+
+Common bottlenecks include:
+
+* CPU exhaustion
+* Memory limitations
+* Network bandwidth constraints
+* Too many concurrent connections
+
+If all traffic is routed to one machine, the system becomes vulnerable to:
+
+* Slow response times
+* Downtime
+* Performance degradation
+
+This is where **load balancing** becomes important.
+
+A load balancer distributes incoming traffic across multiple servers to improve:
+
+* Scalability
+* Reliability
+* Availability
+* Performance
+
+Instead of one server handling all requests, the workload is shared across many servers.
+
+---
+
+## Horizontal Scaling
+
+Horizontal scaling means adding more servers to distribute traffic and workload.
+
+### Example
+
+```text
+    Load Balancer
+     /    |    \
+   App1  App2  App3
+```
+
+Instead of upgrading a single machine, the system scales by increasing the number of servers.
+
+### Advantages
+
+* Better fault tolerance
+* Higher scalability
+* Easier traffic distribution
+* Reduced single points of failure
+
+### Disadvantages
+
+* More infrastructure complexity
+* Requires distributed coordination
+* Load balancing becomes necessary
+
+Horizontal scaling is commonly used in modern distributed systems.
+
+---
+
+## Vertical Scaling
+
+Vertical scaling means upgrading the resources of a single server.
+
+Examples include:
+
+* More CPU cores
+* More RAM
+* Faster storage
+* Higher network bandwidth
+
+### Example
+
+```text
+Small Server -> Larger Server
+```
+
+### Advantages
+
+* Simpler architecture
+* Easier deployment
+* No distributed coordination required
+
+### Disadvantages
+
+* Hardware limits eventually reached
+* More expensive at large scale
+* Single machine remains a failure point
+
+Vertical scaling works well for smaller systems but becomes insufficient at very large scale.
+
+---
+
+## Why Load Balancing Matters
+
+Once systems scale horizontally, incoming traffic must be distributed intelligently.
+
+Without load balancing:
+
+* Some servers may become overloaded
+* Some servers may remain underutilized
+* Failures become harder to handle
+
+Load balancers help ensure:
+
+* Even traffic distribution
+* High availability
+* Better resource utilization
+
+---
+
+## Routing Policies
+
+Load balancers use routing policies to determine which server should receive each request.
+
+Different routing algorithms optimize for different goals.
+
+### Weighted Round Robin
+
+Round robin distributes requests sequentially across servers.
+
+#### Example
+
+```text
+Request 1 -> Server A
+Request 2 -> Server B
+Request 3 -> Server C
+Request 4 -> Server A
+```
+
+Weighted round robin extends this idea by assigning different weights to servers.
+
+A stronger server may receive more traffic than weaker servers.
+
+#### Advantages
+
+* Simple implementation
+* Good traffic distribution
+* Supports heterogeneous server capacity
+
+#### Disadvantages
+
+* Does not account for real-time server load
+* Slow servers may still receive requests
+
+### Lowest Response Time
+
+This policy routes traffic to the server with the fastest response time.
+
+#### Example
+
+```text
+Server A -> 40ms
+Server B -> 20ms
+Server C -> 60ms
+
+Request routed to Server B
+```
+
+#### Advantages
+
+* Adapts dynamically to server health
+* Better real-world performance optimization
+
+#### Disadvantages
+
+* Requires continuous monitoring
+* More operational complexity
+
+This strategy is commonly used in modern cloud load balancers.
+
+### Hashing
+
+Hash-based routing uses request attributes to determine which server handles the request.
+
+Examples include hashing:
+
+* IP addresses
+* Session IDs
+* User IDs
+* Cookies
+
+```text
+hash(user_id) % N
+```
+
+The same user consistently routes to the same server.
+
+This is useful for:
+
+* Sticky sessions
+* Local caching
+* Session persistence
+
+### Layer 4 Hashing
+
+Layer 4 load balancing operates at the transport layer.
+
+Routing decisions are based on:
+
+* IP addresses
+* TCP/UDP ports
+
+#### Advantages
+
+* Faster processing
+* Lower overhead
+* Efficient for high throughput traffic
+
+#### Disadvantages
+
+* Less application-level awareness
+
+### Layer 7 Hashing
+
+Layer 7 load balancing operates at the application layer.
+
+Routing decisions may use:
+
+* HTTP headers
+* Cookies
+* URLs
+* Authentication tokens
+
+#### Advantages
+
+* Smarter routing decisions
+* Better application-level control
+
+#### Disadvantages
+
+* Higher computational overhead
+* More complex processing
+
+### Consistent Hashing
+
+Consistent hashing minimizes request redistribution when servers are added or removed.
+
+Instead of remapping all requests:
+
+* Only a small subset of traffic changes ownership
+
+#### Benefits
+
+* Reduced cache invalidation
+* Better scalability
+* More stable routing behavior
+
+#### Example
+
+```text
+Users -> Hash Ring -> Servers
+```
+
+Consistent hashing is especially useful for systems using:
+
+* Local application caches
+* Distributed caching
+* Session affinity
+
+---
+
+## Consistent Hashing and Local Cache
+
+When applications use local in-memory caching:
+
+* Routing users consistently to the same server improves cache hit rates
+
+### Example
+
+```text
+User A -> Server 1
+User A -> Server 1 again
+```
+
+This allows:
+
+* Reuse of cached data
+* Reduced database queries
+* Faster responses
+
+Without consistent routing:
+
+* Requests may hit different servers
+* Local caches become less effective
+
+This is one of the major advantages of consistent hashing.
+
+---
+
+## Fault Tolerance
+
+Load balancers also improve fault tolerance.
+
+If one server fails:
+
+* Traffic can automatically reroute to healthy servers
+
+This helps systems remain available even during outages.
+
+### Active-Active Architecture
+
+In an active-active setup:
+
+* Multiple servers actively handle traffic simultaneously
+
+#### Example
+
+```text
+    Load Balancer
+     /        \
+ Active A   Active B
+```
+
+#### Advantages
+
+* Better throughput
+* Higher scalability
+* Better resource utilization
+* Improved redundancy
+
+#### Disadvantages
+
+* More synchronization complexity
+* Harder state management
+
+This architecture is common in large-scale distributed systems.
+
+### Active-Passive Architecture
+
+In an active-passive setup:
+
+* One server handles traffic
+* Backup servers remain idle until failover occurs
+
+#### Example
+
+```text
+Primary Server
+      |
+Backup Server
+```
+
+#### Advantages
+
+* Simpler failover model
+* Easier cache consistency
+* Better compatibility with local caching
+
+#### Disadvantages
+
+* Lower resource utilization
+* Passive servers remain underused
+
+This architecture is commonly used in systems prioritizing reliability and simplicity.
+
+---
+
+## Conclusion
+
+Load balancers are essential for horizontally scaled systems.
+
+They help distribute traffic intelligently across multiple servers to improve:
+
+* Scalability
+* Availability
+* Reliability
+* Performance
+
+Different routing strategies optimize for different goals:
+
+* Round robin improves distribution
+* Lowest response time improves latency
+* Hashing improves session consistency
+
+Consistent hashing is especially valuable for systems using local application caches because it improves cache hit rates and reduces unnecessary cache invalidation.
+
+Combined with fault-tolerant architectures such as active-active and active-passive deployments, load balancers form one of the core building blocks of modern distributed systems.
+
+---
+
+## References
+
+[What Is a Load Balancer?](https://www.nginx.com/resources/glossary/load-balancing/)
+
+[Load Balancing on Wikipedia](https://en.wikipedia.org/wiki/Load_balancing_%28computing%29)
+
+[Amazon - What is Load Balancing?](https://aws.amazon.com/what-is/load-balancing/)
+
+[Cloudflare - What is Load Balancing?](https://www.cloudflare.com/learning/performance/what-is-load-balancing/)

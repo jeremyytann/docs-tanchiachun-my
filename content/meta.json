@@ -33,6 +33,7 @@
     "http-methods",
     "http-responses",
     "jsonp",
+    "load-balancing",
     "---Next.js---",
     "guide-to-firebase-hosting",
     "ssr-vs-csr",
