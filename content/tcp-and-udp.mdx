@@ -1,0 +1,314 @@
+---
+title: "TCP and UDP"
+description: "An introduction to TCP and UDP, how reliable delivery works, TCP handshakes, flow control, and congestion control in networking."
+tags: ["Networking", "TCP", "UDP", "Internet", "Protocols"]
+---
+
+## Introduction
+
+Modern computer networks rely on communication protocols to transfer data between devices.
+
+Two of the most important transport layer protocols on the internet are:
+
+* TCP (Transmission Control Protocol)
+* UDP (User Datagram Protocol)
+
+Both protocols are built on top of IP (Internet Protocol), but they are designed for different goals.
+
+### TCP prioritizes:
+
+* Reliability
+* Ordered delivery
+* Error recovery
+
+### UDP prioritizes:
+
+* Speed
+* Low latency
+* Minimal overhead
+
+Understanding the trade-offs between TCP and UDP is fundamental in networking and distributed systems.
+
+---
+
+## UDP
+
+UDP is a lightweight transport protocol that sends data without establishing a connection first.
+
+### Characteristics of UDP
+
+* Connectionless
+* No guaranteed delivery
+* No ordering guarantees
+* No retransmission
+* Very low overhead
+
+### Example Flow
+
+```text
+Sender ---> Receiver
+```
+
+UDP simply sends packets called datagrams.
+
+The protocol does not verify whether:
+
+* Packets arrived successfully
+* Packets arrived in order
+* Packets were duplicated
+
+### Advantages
+
+#### Low Latency
+
+UDP avoids connection setup and retransmission overhead.
+
+This makes it extremely fast.
+
+#### Minimal Overhead
+
+UDP headers are small compared to TCP headers.
+
+This reduces network and processing overhead.
+
+#### Suitable for Real-Time Communication
+
+Applications that prioritize speed over perfect reliability often use UDP.
+
+Examples include:
+
+* Online gaming
+* Video streaming
+* Voice calls (VoIP)
+* DNS queries
+
+In many real-time applications, receiving slightly outdated data is less useful than receiving newer data quickly.
+
+### Disadvantages of UDP
+
+UDP provides no built-in reliability.
+
+Problems may include:
+
+* Packet loss
+* Packet duplication
+* Out-of-order delivery
+* No congestion control
+
+Applications using UDP must handle reliability themselves if needed.
+
+---
+
+## TCP
+
+TCP is a connection-oriented transport protocol designed for reliable communication.
+
+Unlike UDP, TCP ensures:
+
+* Reliable delivery
+* Ordered packets
+* Error detection
+* Congestion handling
+
+TCP is the foundation for many internet applications such as:
+
+* Web browsing (HTTP/HTTPS)
+* Email
+* File transfers
+* Database connections
+
+### 3-Way Handshake
+
+Before data transfer begins, TCP establishes a connection using a process called the **3-way handshake**.
+
+#### Step 1: SYN
+
+Client sends a SYN (synchronize) packet to the server.
+
+```text
+Client ---> SYN ---> Server
+```
+
+#### Step 2: SYN-ACK
+
+Server responds with:
+
+* SYN
+* ACK (acknowledgment)
+
+```text
+Client <--- SYN-ACK <--- Server
+```
+
+#### Step 3: ACK
+
+Client sends a final ACK packet.
+
+```text
+Client ---> ACK ---> Server
+```
+
+After this process completes:
+
+* Both sides establish a connection
+* Data transfer can begin
+
+---
+
+## Reliable Delivery
+
+One of TCP’s primary goals is ensuring reliable delivery.
+
+TCP guarantees:
+
+* Data arrives completely
+* Data arrives in order
+* Missing packets are retransmitted
+
+### Sequence Numbers
+
+TCP assigns sequence numbers to packets.
+
+#### Example
+
+```text
+Packet 1 -> Seq 1000
+Packet 2 -> Seq 2000
+Packet 3 -> Seq 3000
+```
+
+Sequence numbers allow receivers to:
+
+* Detect missing packets
+* Reassemble packets in the correct order
+
+If packets arrive out of order:
+
+* TCP buffers and reorders them before delivering data to applications.
+
+### Timeouts and Retransmission
+
+TCP uses acknowledgments (ACKs) to confirm successful delivery.
+
+If the sender does not receive an ACK within a certain timeout:
+
+* Packet is retransmitted
+
+#### Example
+
+```text
+Sender ---> Packet ---> Receiver
+
+No ACK received
+
+Sender ---> Retransmit Packet ---> Receiver
+```
+
+This mechanism helps recover from packet loss.
+
+---
+
+## Flow Control
+
+Flow control prevents a fast sender from overwhelming a slow receiver.
+
+TCP uses a mechanism called the **receive window**.
+
+The receiver informs the sender how much data it can currently process.
+
+### Benefits
+
+* Prevents buffer overflow
+* Maintains stable communication
+* Matches sender speed to receiver capacity
+
+---
+
+## Congestion Control
+
+Congestion control helps prevent network overload.
+
+If too much traffic is sent into the network:
+
+* Routers may drop packets
+* Latency may increase
+* Throughput may collapse
+
+TCP dynamically adjusts transmission speed based on network conditions.
+
+### Common TCP Congestion Strategies
+
+TCP implementations commonly use:
+
+* Slow start
+* Congestion avoidance
+* Fast retransmit
+* Fast recovery
+
+The goal is balancing:
+
+* High throughput
+* Network stability
+* Fairness between connections
+
+---
+
+## TCP vs UDP
+
+Both protocols optimize for different goals.
+
+| Feature          | TCP         | UDP             |
+| ---------------- | ----------- | --------------- |
+| Connection Setup | Required    | Not Required    |
+| Reliability      | Guaranteed  | Not Guaranteed  |
+| Packet Ordering  | Guaranteed  | Not Guaranteed  |
+| Retransmission   | Yes         | No              |
+| Overhead         | Higher      | Lower           |
+| Latency          | Higher      | Lower           |
+| Best For         | Reliability | Real-time speed |
+
+---
+
+## Conclusion
+
+TCP and UDP are two foundational internet transport protocols with very different design goals.
+
+### TCP focuses on:
+
+* Reliability
+* Ordered delivery
+* Error recovery
+* Network stability
+
+This makes it ideal for:
+
+* Websites
+* Databases
+* File transfers
+* APIs
+
+### UDP focuses on:
+
+* Speed
+* Low latency
+* Minimal overhead
+
+This makes it ideal for:
+
+* Gaming
+* Streaming
+* Real-time communication
+
+Understanding the trade-offs between TCP and UDP is essential for designing scalable and efficient networked systems.
+
+---
+
+## References
+
+[TCP - MDN Web Docs](https://developer.mozilla.org/en-US/docs/Glossary/TCP)
+
+[UDP - MDN Web Docs](https://developer.mozilla.org/en-US/docs/Glossary/UDP)
+
+[Transmission Control Protocol on Wikipedia](https://en.wikipedia.org/wiki/Transmission_Control_Protocol)
+
+[User Datagram Protocol on Wikipedia](https://en.wikipedia.org/wiki/User_Datagram_Protocol)
