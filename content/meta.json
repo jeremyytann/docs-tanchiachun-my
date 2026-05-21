@@ -34,6 +34,7 @@
     "http-responses",
     "jsonp",
     "load-balancing",
+    "realtime-updates",
     "tcp-and-udp",
     "---Next.js---",
     "guide-to-firebase-hosting",

@@ -1,0 +1,359 @@
+---
+title: "Realtime Updates"
+description: "An introduction to realtime communication techniques including polling, long polling, WebSockets, Server-Sent Events, and the thundering herd problem."
+tags: ["Networking", "Realtime", "WebSockets", "SSE", "Backend"]
+---
+
+## Introduction
+
+Modern applications increasingly rely on realtime communication.
+
+Users expect updates to appear instantly without manually refreshing the page.
+
+Examples include:
+
+* Chat applications
+* Live notifications
+* Stock market dashboards
+* Multiplayer games
+* Collaborative editors
+* Live sports scores
+
+To support realtime behavior, systems need mechanisms that allow servers and clients to exchange updates continuously.
+
+Over time, several approaches have been developed to achieve realtime updates:
+
+* Polling
+* Long polling
+* WebSockets
+* Server-Sent Events (SSE)
+
+Each approach provides different trade-offs between:
+
+* Simplicity
+* Latency
+* Scalability
+* Resource usage
+
+---
+
+## Polling
+
+Polling is the simplest approach for realtime communication.
+
+In polling:
+
+* The client repeatedly sends requests to the server at fixed intervals.
+* The server responds immediately with the latest data.
+
+### Example
+
+```text
+Client ---> Request ---> Server
+Client <--- Response <--- Server
+
+(wait)
+
+Client ---> Request ---> Server
+Client <--- Response <--- Server
+```
+
+### Advantages
+
+* Very simple implementation
+* Works with standard HTTP infrastructure
+* Easy to debug
+
+### Disadvantages
+
+* Many unnecessary requests
+* Increased server load
+* Higher bandwidth usage
+* Delayed updates between polling intervals
+
+For example:
+
+* Polling every 5 seconds means updates may appear up to 5 seconds late.
+
+Polling works well for low-frequency updates but becomes inefficient at scale.
+
+---
+
+## Long Polling
+
+Long polling improves traditional polling by keeping the HTTP request open until new data becomes available.
+
+Instead of responding immediately:
+
+* Server waits until data exists
+* Once data is available, response is returned
+* Client immediately opens another request
+
+### Example
+
+```text
+Client ---> Request ---> Server
+
+(Server waits)
+
+Client <--- Response when data arrives <--- Server
+```
+
+### Advantages
+
+* Lower latency than polling
+* Fewer unnecessary requests
+* Works over standard HTTP
+
+### Disadvantages
+
+* Higher server connection overhead
+* More complex connection management
+* Still requires repeated reconnections
+
+Long polling was commonly used before WebSockets became widely supported.
+
+---
+
+## WebSockets
+
+WebSockets provide a persistent, bidirectional connection between client and server.
+
+After the initial connection:
+
+* Both client and server can send messages at any time
+* No repeated HTTP requests are needed
+
+### Example
+
+```text
+Client <=======> Server
+```
+
+### Characteristics
+
+* Persistent connection
+* Full duplex communication
+* Low latency
+* Efficient for realtime applications
+
+### Advantages of WebSockets
+
+#### True Realtime Communication
+
+Messages can be delivered instantly in both directions.
+
+#### Reduced Overhead
+
+Unlike polling:
+
+* No repeated HTTP requests
+* Less network overhead
+* Lower latency
+
+#### Bidirectional Communication
+
+Both client and server can initiate communication.
+
+This is ideal for:
+
+* Chat systems
+* Multiplayer games
+* Collaborative applications
+* Realtime dashboards
+
+### Disadvantages of WebSockets
+
+#### Persistent Connections Consume Resources
+
+Maintaining many simultaneous open connections requires:
+
+* Memory
+* File descriptors
+* Connection management
+
+#### More Infrastructure Complexity
+
+WebSocket systems often require:
+
+* Sticky sessions
+* Stateful infrastructure
+* Specialized scaling strategies
+
+---
+
+## Server-Sent Events (SSE)
+
+Server-Sent Events provide a persistent, unidirectional connection from server to client.
+
+### Characteristics
+
+* Connection starts from the client
+* Server continuously streams updates
+* Client automatically reconnects if disconnected
+
+### Example
+
+```text
+Client ======> Server
+
+Server ------> Client
+Server ------> Client
+Server ------> Client
+```
+
+Unlike WebSockets:
+
+* Communication is one-way
+* Server sends updates only to the client
+
+### Advantages of SSE
+
+#### Simpler Than WebSockets
+
+SSE works directly over standard HTTP.
+
+This makes it easier to:
+
+* Implement
+* Deploy
+* Proxy through infrastructure
+
+#### Automatic Reconnection
+
+Browsers automatically reconnect if the connection drops.
+
+#### Efficient for Server-to-Client Streaming
+
+SSE works well for:
+
+* Notifications
+* Live feeds
+* Event streams
+* Monitoring dashboards
+
+### Disadvantages of SSE
+
+#### Unidirectional Communication
+
+Clients cannot directly push messages through the same connection.
+
+Separate HTTP requests are still required for client-to-server communication.
+
+#### Limited Binary Support
+
+SSE is primarily text-based.
+
+WebSockets are generally more flexible for complex realtime applications.
+
+---
+
+## Polling vs Long Polling vs WebSockets vs SSE
+
+Each realtime strategy optimizes for different use cases.
+
+| Technique    | Connection Type | Direction        | Latency  | Complexity |
+| ------------ | --------------- | ---------------- | -------- | ---------- |
+| Polling      | Repeated HTTP   | Client -> Server | Higher   | Low        |
+| Long Polling | Delayed HTTP    | Client -> Server | Medium   | Medium     |
+| WebSockets   | Persistent      | Bidirectional    | Very Low | High       |
+| SSE          | Persistent      | Server -> Client | Low      | Medium     |
+
+Choosing the correct approach depends on:
+
+* Traffic patterns
+* Infrastructure requirements
+* Scalability goals
+* Realtime requirements
+
+---
+
+## Thundering Herd Problem
+
+The thundering herd problem occurs when many clients simultaneously wake up and request the same resource.
+
+This can happen when:
+
+* Cache entries expire
+* Connections reconnect simultaneously
+* Polling intervals align
+* Servers recover after downtime
+
+### Example
+
+```text
+Thousands of clients
+        |
+   Same Request
+        |
+      Server
+```
+
+This sudden spike can overload backend systems.
+
+### Common Solutions
+
+#### Randomized Retry Timing
+
+Clients reconnect at randomized intervals instead of simultaneously.
+
+#### Exponential Backoff
+
+Failed requests retry progressively slower.
+
+#### Distributed Caching
+
+Reducing repeated backend requests helps absorb traffic spikes.
+
+#### Load Balancing
+
+Traffic distribution across multiple servers improves resilience.
+
+---
+
+## Conclusion
+
+Realtime communication is a core part of modern web applications.
+
+Different approaches provide different trade-offs:
+
+### Polling
+
+* Simple
+* Higher overhead
+
+### Long Polling
+
+* Better efficiency
+* Still connection-heavy
+
+### WebSockets
+
+* True bidirectional realtime communication
+* More infrastructure complexity
+
+### Server-Sent Events
+
+* Efficient server-to-client streaming
+* Simpler than WebSockets
+
+Designing scalable realtime systems also requires handling operational challenges such as the thundering herd problem, connection management, and distributed scaling.
+
+Choosing the right realtime communication strategy depends on the application's:
+
+* Latency requirements
+* Scalability goals
+* Infrastructure complexity
+* Communication patterns
+
+---
+
+## References
+
+[MDN: WebSocket API](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API)
+
+[MDN: Server-Sent Events](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events)
+
+[Push technology on Wikipedia](https://en.wikipedia.org/wiki/Push_technology)
+
+[Comet on Wikipedia](https://en.wikipedia.org/wiki/Comet_%28programming%29)
