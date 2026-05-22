@@ -724,14 +724,126 @@ Eventually, all nodes converge.
 
 ### Sequence CRDTs
 
-Sequence CRDTs support collaborative editing.
+Sequence CRDTs represent an ordered list of items that can be edited independently on multiple replicas.
+
+They are commonly used for collaborative text editing, where each character, word, paragraph, or document node is treated as an element in a replicated sequence.
 
 #### Example Applications
 
 - Google Docs-like editors
 - Collaborative note systems
+- Shared task lists
+- Collaborative whiteboards
 
-They allow concurrent insertions without conflicts.
+The hard part is preserving order when users edit the same position at the same time.
+
+If two users insert text at index `3`, ordinary array indexes are not enough:
+
+```text
+Initial document:
+A B C
+
+Replica 1 inserts X after A:
+A X B C
+
+Replica 2 inserts Y after A:
+A Y B C
+```
+
+When the replicas synchronize, both inserts must survive and every replica must agree on the same final order:
+
+```text
+A X Y B C
+```
+
+or:
+
+```text
+A Y X B C
+```
+
+Either order can be valid, but all replicas must converge to the same order.
+
+#### How Sequence CRDTs Work
+
+Instead of identifying an element only by its current array index, sequence CRDTs give every element a stable unique identifier.
+
+That identifier usually contains:
+
+- A position identifier
+- A replica or actor identifier
+- A counter or timestamp-like value
+
+Example:
+
+```text
+Element: "X"
+ID:      [position: between A and B, actor: replica-1, counter: 42]
+```
+
+The position determines where the element belongs in the sequence.
+
+The actor and counter help break ties deterministically when concurrent inserts target the same location.
+
+#### Example: Concurrent Insert 
+
+```text
+Initial state:
+[A] [B] [C]
+
+Replica 1 inserts X between A and B:
+[A] [X] [B] [C]
+
+Replica 2 inserts Y between A and B:
+[A] [Y] [B] [C]
+```
+
+Each replica assigns a unique identifier.
+
+Conceptually, this can be imagined as:
+
+```text
+X → position 1.4, actor replica-1
+Y → position 1.6, actor replica-2
+```
+
+After synchronization, both replicas sort elements by identifier:
+
+```text
+[A] [X] [Y] [B] [C]
+```
+
+This means neither write overwrites the other, and both replicas converge without requiring a central coordinator.
+
+#### Example: Deletes
+
+Deletes are usually represented with tombstones or metadata.
+
+Instead of immediately removing an element from all internal state, a replica records that the element was deleted:
+
+```text
+[A] [X deleted] [Y] [B] [C]
+```
+
+The deleted element may be hidden from users but retained internally so that future merges can still understand operations that referenced it.
+
+Some implementations later compact tombstones once it is safe to do so.
+
+#### Advantages
+
+- Concurrent edits can merge automatically
+- Replicas can accept local edits while offline
+- No single leader is required for ordering every edit
+- Good fit for real-time collaborative applications
+
+#### Disadvantages
+
+- Identifiers can grow over time
+- Tombstones may increase storage usage
+- Implementations are more complex than simple last-write-wins conflict resolution
+- Maintaining efficient ordering can require specialized data structures
+
+Popular sequence CRDT designs include **RGA**, **Logoot**, **LSEQ**, and **YATA**.
 
 ---
 
