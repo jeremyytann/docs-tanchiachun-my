@@ -1,0 +1,482 @@
+---
+title: "Object Stores"
+description: "An introduction to object storage, buckets, object keys, metadata, presigned URLs, lifecycle policies, and common use cases."
+tags: ["Storage", "Object Storage", "S3", "Blob Storage", "Distributed Systems"]
+---
+
+## Introduction
+
+Modern applications often need to store large files such as images, videos, documents, backups, logs, and exported reports.
+
+Storing these files directly inside a relational database is usually inefficient because:
+
+- Files can be very large
+- Database storage is expensive
+- Backups become slower
+- Application servers may become overloaded
+- Serving files directly from the database is not ideal for performance
+
+This is where **object stores** become useful.
+
+An object store is a storage system designed to store large amounts of unstructured data as objects.
+
+Popular examples include:
+
+- Amazon S3
+- Google Cloud Storage
+- Azure Blob Storage
+- Cloudflare R2
+- MinIO
+
+Object stores are commonly used as the durable storage layer behind file uploads, static assets, media libraries, logs, backups, and data lakes.
+
+---
+
+## What is Object Storage?
+
+**Object storage** stores data as independent objects instead of rows, blocks, or files in a traditional directory tree.
+
+Each object usually contains:
+
+- The actual data
+- A unique key
+- Metadata
+- Version information, if versioning is enabled
+
+Instead of updating objects through database-style queries, applications usually interact with object stores through HTTP APIs.
+
+### Example
+
+```text
+Bucket: user-uploads
+Key: users/123/profile-picture.png
+Data: binary image content
+Metadata: content-type=image/png
+```
+
+The object can then be retrieved using its bucket and key.
+
+---
+
+## Buckets, Objects, and Keys
+
+Most object stores use three important concepts.
+
+### Bucket
+
+A **bucket** is a top-level container for objects.
+
+Buckets are often used to separate:
+
+- Applications
+- Environments
+- Teams
+- Access policies
+- Data retention rules
+
+Example buckets:
+
+- `production-user-uploads`
+- `staging-assets`
+- `analytics-logs`
+- `database-backups`
+
+### Object
+
+An **object** is the stored data plus its metadata.
+
+Examples of objects include:
+
+- An uploaded profile image
+- A PDF invoice
+- A video file
+- A log archive
+- A database backup
+
+### Key
+
+An **object key** is the unique name used to identify an object inside a bucket.
+
+Although keys may look like file paths, object stores usually do not store data in real folders.
+
+For example:
+
+```text
+users/123/avatar.png
+```
+
+This looks like a nested file path, but it is usually just a string key.
+
+The `/` characters are useful for organization and listing, but the object store still treats the key as an identifier.
+
+---
+
+## Object Store vs Filesystem vs Database
+
+Object stores solve a different problem from filesystems and databases.
+
+| Storage Type | Best For | Access Pattern |
+| ------------ | -------- | -------------- |
+| Object store | Large unstructured files | Store and retrieve by key |
+| Filesystem | Local or shared file access | Read and write file paths |
+| Block storage | Virtual machine disks and databases | Low-level disk blocks |
+| Database | Structured records and queries | Query, filter, join, transact |
+
+### Object Stores are Good For
+
+- Large files
+- Static assets
+- Media uploads
+- Backups
+- Log archives
+- Data lakes
+- Public downloads
+
+### Object Stores are Not Good For
+
+- Complex queries
+- Frequent partial updates
+- Low-latency random writes
+- Relational data modeling
+- Strong transactional workflows across many records
+
+If you need to query structured data, use a database.
+
+If you need to store and serve large files, use an object store.
+
+---
+
+## Common Use Cases
+
+Object stores are widely used in backend and cloud architecture.
+
+### User Uploads
+
+Applications can store user-uploaded files such as:
+
+- Profile pictures
+- Documents
+- Receipts
+- Chat attachments
+
+The database usually stores only the object key or URL, while the object store stores the actual file.
+
+### Static Assets
+
+Object stores can host static assets such as:
+
+- Images
+- CSS files
+- JavaScript bundles
+- Fonts
+- Downloads
+
+These assets are often served through a CDN for faster delivery.
+
+### Backups
+
+Object stores are commonly used for:
+
+- Database backups
+- Application snapshots
+- Export files
+- Disaster recovery archives
+
+They are useful because they are durable, scalable, and relatively inexpensive.
+
+### Logs and Analytics
+
+Large systems often write logs and events into object storage for later processing.
+
+Examples:
+
+- Application logs
+- Clickstream events
+- Audit trails
+- Data lake files
+
+Analytics tools can later process these files in batches.
+
+---
+
+## How Applications Use Object Stores
+
+A common upload flow looks like this:
+
+```text
+User
+  |
+  | Request upload permission
+  v
+Application Server
+  |
+  | Create presigned upload URL
+  v
+Object Store
+  ^
+  |
+  | Upload file directly
+User
+```
+
+Instead of sending a large file through the application server, the server gives the client temporary permission to upload directly to the object store.
+
+This reduces:
+
+- Application server bandwidth
+- Request processing time
+- Backend memory usage
+- Upload bottlenecks
+
+After the upload completes, the application usually stores the object key in a database.
+
+---
+
+## Presigned URLs
+
+A **presigned URL** is a temporary URL that grants limited access to an object store operation.
+
+It can be used for:
+
+- Uploading a file
+- Downloading a private file
+- Giving time-limited access to protected content
+
+Example use case:
+
+1. User wants to upload a profile picture
+2. Backend verifies the user is allowed to upload
+3. Backend creates a presigned upload URL
+4. User uploads the file directly to object storage
+5. Backend saves the object key in the database
+
+Presigned URLs are useful because the client does not need permanent storage credentials.
+
+The URL usually expires after a short time.
+
+---
+
+## Metadata
+
+Objects can include metadata that describes the stored data.
+
+Common metadata includes:
+
+- Content type
+- File size
+- Cache control headers
+- Encryption settings
+- Custom application metadata
+
+Example:
+
+```text
+Content-Type: image/png
+Cache-Control: public, max-age=31536000
+x-amz-meta-user-id: 123
+```
+
+Metadata helps clients and CDNs understand how to handle the object.
+
+For example, an image should be served with the correct `Content-Type` so browsers know how to display it.
+
+---
+
+## Consistency
+
+Object stores are distributed systems, so consistency matters.
+
+Many modern object stores provide strong read-after-write consistency for new objects and updates.
+
+This means that after an upload succeeds, a later read should return the latest object.
+
+However, applications should still think carefully about:
+
+- CDN caching
+- Overwriting existing keys
+- Concurrent uploads
+- Retried writes
+- Event processing delays
+
+Even if the object store is strongly consistent, other parts of the system may still introduce stale reads.
+
+For example, a CDN may continue serving an old cached version until the cache expires or is invalidated.
+
+---
+
+## Versioning
+
+Object stores can often keep multiple versions of the same object key.
+
+With versioning enabled, overwriting an object does not permanently destroy the old version immediately.
+
+This is useful for:
+
+- Recovering deleted files
+- Rolling back accidental overwrites
+- Auditing object changes
+- Protecting important backups
+
+### Example
+
+```text
+reports/monthly.pdf
+  version 1
+  version 2
+  version 3
+```
+
+Versioning improves safety, but it can also increase storage costs if old versions are not cleaned up.
+
+---
+
+## Lifecycle Policies
+
+Lifecycle policies automatically manage objects over time.
+
+They can be used to:
+
+- Delete old files
+- Move files to cheaper storage
+- Remove incomplete multipart uploads
+- Expire old object versions
+- Archive rarely accessed data
+
+### Example Rules
+
+- Delete temporary uploads after 7 days
+- Move logs to archive storage after 30 days
+- Delete old backup versions after 180 days
+- Clean up failed multipart uploads after 1 day
+
+Lifecycle policies are important because object stores can grow very large over time.
+
+Without cleanup rules, unused files and old versions may quietly increase storage costs.
+
+---
+
+## Multipart Uploads
+
+Large files are often uploaded in multiple parts.
+
+Instead of uploading one huge file in a single request, the client splits the file into smaller chunks.
+
+### Benefits
+
+- Better reliability for large uploads
+- Failed parts can be retried individually
+- Uploads can happen in parallel
+- Large files do not need to restart from zero after one network failure
+
+Multipart uploads are commonly used for videos, backups, datasets, and large exports.
+
+However, incomplete multipart uploads should be cleaned up with lifecycle policies.
+
+---
+
+## Object Stores and CDNs
+
+Object stores are often used together with CDNs.
+
+The object store acts as the origin.
+
+The CDN caches objects close to users.
+
+```text
+User
+  |
+  v
+CDN Edge
+  |
+  v
+Object Store
+```
+
+This is useful for serving:
+
+- Images
+- Videos
+- Static websites
+- Downloads
+- Public assets
+
+Using a CDN reduces latency and lowers direct traffic to the object store.
+
+---
+
+## Security Considerations
+
+Object stores are powerful, but misconfiguration can expose sensitive data.
+
+Important security practices include:
+
+- Keep buckets private by default
+- Use least-privilege access policies
+- Use presigned URLs for temporary access
+- Validate file type and file size before upload
+- Avoid storing secrets in public objects
+- Enable encryption where required
+- Log access to sensitive buckets
+
+Public buckets should be intentional.
+
+For private user files, the application should control access instead of exposing objects directly.
+
+---
+
+## Trade-offs
+
+Object stores are scalable and durable, but they have trade-offs.
+
+### Advantages
+
+- Highly scalable
+- Durable storage
+- Cost-effective for large files
+- Works well with CDNs
+- Good for backups and archives
+- Simple key-based access model
+
+### Disadvantages
+
+- Not designed for relational queries
+- Not ideal for frequent small updates
+- Listing many objects can be slow or expensive
+- Access control can become complex
+- CDN caching may cause stale content
+- Costs can grow if lifecycle rules are missing
+
+Object stores are best when the application needs to store large blobs of data and retrieve them by key.
+
+---
+
+## Conclusion
+
+Object stores are a core building block in modern cloud systems.
+
+They are designed for storing large amounts of unstructured data such as files, images, videos, backups, logs, and static assets.
+
+The main ideas to remember are:
+
+- Buckets organize objects
+- Keys identify objects
+- Metadata describes objects
+- Presigned URLs allow temporary direct access
+- Lifecycle policies help control storage growth
+- CDNs can make object delivery faster
+
+Use a database for structured data and queries.
+
+Use an object store for durable, scalable file storage.
+
+---
+
+## References
+
+[Amazon S3 User Guide](https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html)
+
+[Google Cloud Storage Documentation](https://cloud.google.com/storage/docs)
+
+[Azure Blob Storage Documentation](https://learn.microsoft.com/en-us/azure/storage/blobs/storage-blobs-introduction)
+
+[Cloudflare R2 Documentation](https://developers.cloudflare.com/r2/)

@@ -10,6 +10,7 @@
     "database-indexes",
     "database-partitioning",
     "database-replication",
+    "object-stores",
     "sql-and-nosql-databases",
     "transaction-isolation-levels-and-concurrency-anomalies",
     "---DevOps---",
