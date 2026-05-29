@@ -4,6 +4,7 @@
     "---Introduction---",
     "index",
     "---Algorithms---",
+    "euclids-algorithm",
     "the-sieve-of-eratosthenes",
     "---Database---",
     "acid-principles",
