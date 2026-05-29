@@ -1,0 +1,351 @@
+---
+title: React Native Worklets
+description: Learn how React Native Worklets run JavaScript on different runtimes and threads for smoother animations, gestures, and performance-sensitive tasks.
+tags: ["React Native", "Worklets", "Performance", "Multithreading", "Mobile Development"]
+---
+
+## Introduction
+
+React Native applications can feel slow when too much work happens on the main JavaScript thread. Animations, gestures, and high-frequency UI updates need to respond quickly, but the RN runtime may also be busy with React renders, state updates, API responses, and business logic.
+
+React Native Worklets solve this by letting selected JavaScript functions run on a different runtime. Instead of sending every interaction through the RN runtime, a worklet can execute closer to the UI thread or inside a separate worker runtime.
+
+This is especially useful when building features that must stay smooth even when the rest of the app is doing work in the background.
+
+---
+
+## What are React Native Worklets?
+
+React Native Worklets allow JavaScript functions to run outside the normal React Native JavaScript thread. A worklet can be moved to another JavaScript runtime, such as the **UI runtime**, so it can respond to gestures, animations, and other time-sensitive work without waiting for the main JS thread.
+
+In simple terms, a worklet is a small JavaScript function that can be copied and executed on another thread.
+
+---
+
+## Why Use Worklets?
+
+React Native apps normally run most JavaScript logic on the **RN runtime**. If that thread is busy with rendering, network handling, state updates, or heavy calculations, interactions can feel delayed.
+
+Worklets help by moving selected logic closer to where it needs to run.
+
+- **Smooth animations**: animation calculations can run on the UI thread.
+- **Fast gestures**: pan, tap, and scroll logic can react without waiting for React state updates.
+- **Better responsiveness**: expensive or frequent logic can be separated from the main JS thread.
+- **Native integrations**: libraries can create their own runtimes for specialized work.
+
+<Callout type="info">
+  Worklets are useful for short-running, performance-sensitive logic. They are not a replacement for every JavaScript function in an app.
+</Callout>
+
+---
+
+## Installing React Native Worklets
+
+Install the package:
+
+```bash
+npm install react-native-worklets
+```
+
+Or with Yarn:
+
+```bash
+yarn add react-native-worklets
+```
+
+If you are using Expo, run prebuild after installing native dependencies:
+
+```bash
+npx expo prebuild
+```
+
+For React Native Community CLI projects, add the Babel plugin in `babel.config.js`:
+
+```js
+module.exports = {
+  presets: ['module:@react-native/babel-preset'],
+  plugins: ['react-native-worklets/plugin'],
+};
+```
+
+Then clear the Metro cache:
+
+```bash
+npm start -- --reset-cache
+```
+
+For iOS projects, install pods:
+
+```bash
+cd ios && pod install && cd ..
+```
+
+<Callout type="info">
+  React Native Worklets is designed for the New Architecture. It is recommended to migrate away from the Legacy Architecture before relying on Worklets in production.
+</Callout>
+
+---
+
+## Defining a Worklet
+
+A function becomes a worklet when it includes the `'worklet'` directive at the top of the function body.
+
+```ts
+function calculateOpacity(scrollY: number) {
+  'worklet';
+
+  if (scrollY < 100) {
+    return 1;
+  }
+
+  return 0.5;
+}
+```
+
+The Worklets Babel plugin transforms this function so it can be serialized and executed on another runtime. This process is called **workletization**.
+
+---
+
+## Running Code on the UI Runtime
+
+Use `runOnUIAsync` when you want to execute a worklet on the UI runtime and receive a result asynchronously.
+
+```ts
+import { runOnUIAsync } from 'react-native-worklets';
+
+function calculateSnapPoint(position: number, velocity: number) {
+  'worklet';
+
+  return velocity > 500 ? position + 100 : position;
+}
+
+async function onRelease(position: number, velocity: number) {
+  const nextPosition = await runOnUIAsync(
+    calculateSnapPoint,
+    position,
+    velocity,
+  );
+
+  console.log('Next position:', nextPosition);
+}
+```
+
+The important part is to pass the function reference and its arguments separately.
+
+```ts
+// Correct
+runOnUIAsync(calculateSnapPoint, position, velocity);
+
+// Incorrect
+runOnUIAsync(calculateSnapPoint(position, velocity));
+```
+
+---
+
+## Calling Back to the React Native Runtime
+
+A worklet cannot directly call normal JavaScript functions from the RN runtime. For example, updating React state, navigating, or calling most third-party libraries should be scheduled back on the RN runtime.
+
+Use `scheduleOnRN` for that.
+
+```tsx
+import { useState } from 'react';
+import { scheduleOnRN } from 'react-native-worklets';
+
+export function SliderExample() {
+  const [progress, setProgress] = useState(0);
+
+  function updateProgressOnRN(value: number) {
+    setProgress(value);
+  }
+
+  function handleGesture(value: number) {
+    'worklet';
+
+    scheduleOnRN(updateProgressOnRN, value);
+  }
+
+  return (
+    // connect handleGesture to your gesture or animation logic
+    null
+  );
+}
+```
+
+`updateProgressOnRN` is defined in the component body, so it belongs to the RN runtime. The worklet schedules it instead of calling it directly.
+
+---
+
+## Worklets and Closures
+
+Worklets can capture values from the outer scope, just like normal JavaScript closures.
+
+```ts
+const maxWidth = 320;
+
+function clampWidth(width: number) {
+  'worklet';
+
+  return Math.min(width, maxWidth);
+}
+```
+
+Only capture the values the worklet actually needs. Capturing a large object can increase the amount of data copied into the worklet runtime.
+
+```ts
+const theme = {
+  colors: {
+    primary: '#0f766e',
+  },
+  spacing: {
+    sm: 8,
+    md: 16,
+  },
+};
+
+// Better: capture only the specific value
+const primaryColor = theme.colors.primary;
+
+function getActiveColor() {
+  'worklet';
+
+  return primaryColor;
+}
+```
+
+---
+
+## Common Use Cases
+
+### Gesture handling
+
+Worklets are commonly used with gesture libraries because gesture callbacks need to run quickly and consistently.
+
+```ts
+function onPan(deltaX: number) {
+  'worklet';
+
+  return Math.max(0, deltaX);
+}
+```
+
+### Animation calculations
+
+Animations often depend on frame-by-frame values. Running this logic on the UI runtime helps avoid dropped frames when the RN runtime is busy.
+
+```ts
+function getScale(progress: number) {
+  'worklet';
+
+  return 1 + progress * 0.2;
+}
+```
+
+### Background runtimes
+
+Advanced libraries can create custom worklet runtimes for specialized work.
+
+```ts
+import { createWorkletRuntime } from 'react-native-worklets';
+
+const backgroundRuntime = createWorkletRuntime({
+  name: 'background',
+  initializer: () => {
+    'worklet';
+    console.log('Background runtime initialized');
+  },
+});
+```
+
+---
+
+## Best Practices
+
+1. **Keep worklets small**
+   - Worklets should do focused calculations or scheduling work.
+
+2. **Avoid capturing large objects**
+   - Extract only the values needed by the worklet.
+
+3. **Use `scheduleOnRN` for React state and navigation**
+   - Normal JS functions should run on the RN runtime.
+
+4. **Pass arguments explicitly**
+   - Prefer `runOnUIAsync(fn, value)` instead of wrapping or immediately calling the function.
+
+5. **Do not rely on every JS API**
+   - A worklet runtime is not the same as the normal RN runtime. Some APIs need to be injected, captured, or called from the RN runtime.
+
+---
+
+## Worklets vs Web Workers
+
+Worklets and Web Workers both move JavaScript away from the main execution path, but they are used in different environments.
+
+| Feature | React Native Worklets | Web Workers |
+| --- | --- | --- |
+| Platform | React Native | Web browsers |
+| Common use | Gestures, animations, native runtime logic | CPU-heavy browser tasks |
+| Thread target | UI runtime, worker runtime, or custom runtime | Worker thread |
+| React access | Use `scheduleOnRN` to return to RN runtime | Use messages to communicate |
+| Setup | Babel plugin and native package | Browser worker file or module |
+
+---
+
+## Common Mistakes
+
+### Calling a normal JS function directly
+
+```ts
+function saveValue(value: number) {
+  // normal RN runtime function
+}
+
+function handleValue(value: number) {
+  'worklet';
+
+  saveValue(value); // incorrect
+}
+```
+
+Use `scheduleOnRN` instead:
+
+```ts
+function handleValue(value: number) {
+  'worklet';
+
+  scheduleOnRN(saveValue, value);
+}
+```
+
+### Forgetting the Babel plugin
+
+Without the Worklets Babel plugin, functions marked with `'worklet'` cannot be transformed correctly for another runtime.
+
+### Capturing too much state
+
+Avoid referencing a large object if the worklet only needs one value from it.
+
+---
+
+## Conclusion
+
+React Native Worklets make it possible to run selected JavaScript logic on other runtimes, especially the UI runtime. They are most helpful for animations, gestures, and performance-sensitive code where waiting for the RN runtime could cause visible lag.
+
+Use them for focused work, keep captured data small, and schedule normal React Native logic back to the RN runtime when needed.
+
+---
+
+## References
+
+[React Native Worklets Documentation](https://docs.swmansion.com/react-native-worklets/docs/fundamentals/getting-started/)
+
+[Worklets Babel Plugin](https://docs.swmansion.com/react-native-worklets/docs/worklets-babel-plugin/about/)
+
+[runOnUIAsync](https://docs.swmansion.com/react-native-worklets/docs/threading/runOnUIAsync/)
+
+[runOnRuntimeAsync](https://docs.swmansion.com/react-native-worklets/docs/threading/runOnRuntimeAsync/)
+
+[scheduleOnRN](https://docs.swmansion.com/react-native-worklets/docs/threading/scheduleOnRN/)
+
+[scheduleOnRuntime](https://docs.swmansion.com/react-native-worklets/docs/threading/scheduleOnRuntime/)

@@ -54,6 +54,7 @@
     "state-management",
     "virtual-dom",
     "---React Native---",
+    "react-native-worklets",
     "ssl-pinning-in-react-native",
     "---Security---",
     "api-idempotency",
