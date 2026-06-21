@@ -1,0 +1,270 @@
+---
+title: "API Routes"
+description: "Learn how API routes work in Next.js, including App Router route handlers and Pages Router API routes."
+tags: ["Next.js", "API", "Route Handlers", "Backend"]
+---
+
+## What are API Routes in Next.js?
+
+API routes allow a Next.js application to expose backend endpoints from the same project as the frontend. They are useful for handling form submissions, reading from databases, calling private third-party APIs, processing webhooks, and hiding sensitive server-side logic from the browser.
+
+In modern Next.js applications, the recommended approach depends on which router you are using:
+
+- **App Router:** Use `route.ts` or `route.js` files inside the `app` directory.
+- **Pages Router:** Use files inside `pages/api`.
+
+---
+
+## API Routes in the App Router
+
+In the App Router, API routes are called **Route Handlers**. A route handler is created by adding a `route.ts` file inside a route segment.
+
+For example, this file:
+
+```txt
+app/api/hello/route.ts
+```
+
+creates this endpoint:
+
+```txt
+/api/hello
+```
+
+### Example: GET Route Handler
+
+```ts
+// app/api/hello/route.ts
+export async function GET() {
+  return Response.json({
+    message: "Hello from Next.js!",
+  });
+}
+```
+
+This route can be requested from the browser or client code:
+
+```ts
+const response = await fetch("/api/hello");
+const data = await response.json();
+```
+
+---
+
+## Handling HTTP Methods
+
+Route handlers use named exports for each HTTP method. Next.js supports common methods such as `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, and `OPTIONS`.
+
+```ts
+// app/api/users/route.ts
+export async function GET() {
+  return Response.json([
+    { id: 1, name: "Jeremy" },
+    { id: 2, name: "Alex" },
+  ]);
+}
+
+export async function POST(request: Request) {
+  const body = await request.json();
+
+  return Response.json(
+    {
+      message: "User created",
+      user: body,
+    },
+    { status: 201 },
+  );
+}
+```
+
+If a request uses an unsupported HTTP method, Next.js returns a `405 Method Not Allowed` response.
+
+---
+
+## Reading Request Data
+
+Route handlers use the standard Web `Request` API. This means request bodies, headers, and query strings are accessed through familiar browser-style APIs.
+
+### Request Body
+
+```ts
+export async function POST(request: Request) {
+  const body = await request.json();
+
+  return Response.json({
+    received: body,
+  });
+}
+```
+
+### Query Parameters
+
+```ts
+import type { NextRequest } from "next/server";
+
+export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams;
+  const page = searchParams.get("page") ?? "1";
+
+  return Response.json({
+    page,
+  });
+}
+```
+
+### Dynamic Route Parameters
+
+```txt
+app/api/users/[id]/route.ts
+```
+
+```ts
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id } = await params;
+
+  return Response.json({
+    id,
+  });
+}
+```
+
+---
+
+## Returning Responses
+
+The simplest way to return JSON is `Response.json()`.
+
+```ts
+return Response.json({ success: true });
+```
+
+You can also return custom status codes and headers:
+
+```ts
+return Response.json(
+  { error: "Unauthorized" },
+  {
+    status: 401,
+    headers: {
+      "Cache-Control": "no-store",
+    },
+  },
+);
+```
+
+For redirects, use `NextResponse`:
+
+```ts
+import { NextResponse } from "next/server";
+
+export async function GET() {
+  return NextResponse.redirect("https://example.com");
+}
+```
+
+---
+
+## API Routes in the Pages Router
+
+In the Pages Router, API routes are created inside the `pages/api` directory.
+
+For example, this file:
+
+```txt
+pages/api/hello.ts
+```
+
+creates this endpoint:
+
+```txt
+/api/hello
+```
+
+### Example: Pages Router API Route
+
+```ts
+// pages/api/hello.ts
+import type { NextApiRequest, NextApiResponse } from "next";
+
+type ResponseData = {
+  message: string;
+};
+
+export default function handler(
+  req: NextApiRequest,
+  res: NextApiResponse<ResponseData>,
+) {
+  res.status(200).json({
+    message: "Hello from Next.js!",
+  });
+}
+```
+
+To handle different methods, check `req.method`:
+
+```ts
+export default function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method === "POST") {
+    return res.status(201).json({ message: "Created" });
+  }
+
+  return res.status(405).json({ message: "Method not allowed" });
+}
+```
+
+---
+
+## App Router vs. Pages Router
+
+| Feature | App Router Route Handlers | Pages Router API Routes |
+|--------|----------------------------|--------------------------|
+| File location | `app/**/route.ts` | `pages/api/*.ts` |
+| Handler style | Named exports like `GET` and `POST` | Default exported handler |
+| Request API | Web `Request` and `Response` APIs | Node.js-style `req` and `res` |
+| Best for | New Next.js applications | Existing Pages Router projects |
+| Static export support | Can be used in some App Router static export scenarios | Not supported with static export |
+
+For new projects using the App Router, prefer **Route Handlers**. For older projects using the Pages Router, `pages/api` is still valid and commonly used.
+
+---
+
+## Common Use Cases
+
+- **Form submissions:** Validate and store submitted form data.
+- **Authentication:** Handle login, logout, sessions, and token refreshes.
+- **Database operations:** Read or mutate data without exposing database credentials.
+- **Third-party API calls:** Keep private API keys on the server.
+- **Webhooks:** Receive events from services like Stripe, GitHub, or Clerk.
+- **File processing:** Upload, transform, or validate files on the server.
+
+---
+
+## Best Practices
+
+- **Validate input:** Never trust request body, query string, or route parameters directly.
+- **Return clear status codes:** Use `200`, `201`, `400`, `401`, `404`, and `500` intentionally.
+- **Keep secrets server-side:** Read private keys from environment variables, not client code.
+- **Handle errors consistently:** Return predictable JSON error responses.
+- **Use the right runtime:** Use the Node.js runtime when you need Node APIs, and the Edge runtime for lightweight, globally distributed logic.
+- **Avoid heavy business logic in handlers:** Move reusable logic into separate server-side functions or services.
+
+---
+
+## Conclusion
+
+API routes make it possible to build small backend endpoints directly inside a Next.js project. In App Router projects, use `route.ts` files and the Web `Request`/`Response` APIs. In Pages Router projects, use `pages/api` with `NextApiRequest` and `NextApiResponse`.
+
+The main idea is the same in both routers: API routes run on the server, protect sensitive logic, and give the frontend a clean endpoint to call.
+
+---
+
+## References
+
+[Next.js - API Routes](https://nextjs.org/docs/pages/building-your-application/routing/api-routes)
+
+[Next.js - Route Handlers](https://nextjs.org/docs/app/getting-started/route-handlers)
+
+[Next.js - route.js File Convention](https://nextjs.org/docs/app/api-reference/file-conventions/route)
