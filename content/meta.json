@@ -65,6 +65,7 @@
     "encryption",
     "hashing",
     "rate-limiting",
+    "session-based-authentication-and-token-based-authentication",
     "---Software Engineering---",
     "api-versioning",
     "caching-strategies",

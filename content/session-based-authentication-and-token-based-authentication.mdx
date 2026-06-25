@@ -1,0 +1,198 @@
+---
+title: "Session-Based Authentication and Token-Based Authentication"
+description: "Learn how session-based authentication and token-based authentication work, how they differ, and when to use each approach in web applications."
+tags: ["Authentication", "Security", "Session", "Token", "JWT"]
+---
+
+## Introduction
+
+Authentication is the process of verifying who a user is. After a user logs in, the application needs a way to remember that user across future requests.
+
+Two common approaches are **session-based authentication** and **token-based authentication**. Both solve the same problem, but they store and verify authentication state differently.
+
+---
+
+## What is Session-Based Authentication?
+
+Session-based authentication stores the user’s login state on the server. After the user logs in successfully, the server creates a session record and sends the browser a session ID, usually inside a cookie.
+
+On later requests, the browser automatically sends the cookie back to the server. The server looks up the session ID and uses it to identify the logged-in user.
+
+### How Session-Based Authentication Works
+
+1. User submits login credentials.
+2. Server validates the credentials.
+3. Server creates a session and stores it in memory, a database, or a cache.
+4. Server sends a session ID to the browser as a cookie.
+5. Browser sends the cookie with future requests.
+6. Server verifies the session ID and retrieves the user data.
+
+### Advantages of Session-Based Authentication
+
+- **Simple for traditional web apps** — works naturally with browser cookies and server-rendered pages.
+- **Easy logout and revocation** — the server can delete or invalidate a session immediately.
+- **Small client-side data** — the browser only needs to store a session ID.
+- **Good control** — the server owns the session state and can update it anytime.
+
+### Disadvantages of Session-Based Authentication
+
+- **Requires server-side storage** — sessions must be stored somewhere reliable.
+- **More complex scaling** — multiple servers need shared access to session data.
+- **CSRF protection is important** — cookies are sent automatically by the browser.
+- **Session cleanup is needed** — expired sessions should be removed from storage.
+
+### Example: Session Cookie
+
+```http
+Set-Cookie: sessionId=abc123; Path=/; HttpOnly; Secure; SameSite=Lax
+```
+
+The cookie should usually be marked as:
+
+- **HttpOnly** — prevents JavaScript from reading the cookie.
+- **Secure** — sends the cookie only over HTTPS.
+- **SameSite** — helps reduce Cross-Site Request Forgery (CSRF) risks.
+
+---
+
+## What is Token-Based Authentication?
+
+Token-based authentication stores the user’s login proof in a token. After login, the server generates a token and sends it to the client. The client then includes that token in future requests, often using the `Authorization` header.
+
+One common token format is **JWT (JSON Web Token)**. A JWT can contain claims such as the user ID, role, and expiration time. The server verifies the token signature to confirm that it has not been modified.
+
+### How Token-Based Authentication Works
+
+1. User submits login credentials.
+2. Server validates the credentials.
+3. Server generates an access token.
+4. Client stores the token.
+5. Client sends the token with future API requests.
+6. Server validates the token and processes the request.
+
+### Advantages of Token-Based Authentication
+
+- **Good for APIs and mobile apps** — clients can send tokens explicitly with each request.
+- **Works well across services** — different services can validate signed tokens.
+- **Stateless verification** — servers can often validate tokens without database lookup.
+- **Flexible** — tokens can include claims such as roles, scopes, and expiry time.
+
+### Disadvantages of Token-Based Authentication
+
+- **Token revocation is harder** — a token may remain valid until it expires.
+- **Storage matters** — tokens stored in `localStorage` can be stolen through XSS.
+- **Payload can become stale** — user roles or permissions may change before the token expires.
+- **Implementation mistakes are common** — weak secrets, long expiration times, or skipped signature validation can create serious vulnerabilities.
+
+### Example: Authorization Header
+
+```http
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+<Callout type="warn">
+  Avoid storing sensitive data inside tokens. A signed token proves integrity, but it does not hide the token payload unless encryption is also used.
+</Callout>
+
+---
+
+## Session-Based vs Token-Based Authentication
+
+| Feature | Session-Based Authentication | Token-Based Authentication |
+|---------|------------------------------|----------------------------|
+| State storage | Stored on the server | Usually stored on the client |
+| Common transport | Cookie | Authorization header or cookie |
+| Server lookup | Usually required | Often not required for signed tokens |
+| Scalability | Requires shared session storage in distributed systems | Easier to use across multiple services |
+| Revocation | Easy, delete the session server-side | Harder unless using short expiry or a token blacklist |
+| Browser behavior | Cookies are sent automatically | Headers must usually be attached manually |
+| CSRF risk | Higher when using cookies | Lower when using headers, but still possible if tokens are stored in cookies |
+| XSS risk | Lower if cookies are `HttpOnly` | Higher if tokens are stored in `localStorage` or accessible JavaScript storage |
+
+---
+
+## Access Tokens and Refresh Tokens
+
+Token-based systems commonly use two token types:
+
+- **Access token** — short-lived token used to access protected resources.
+- **Refresh token** — longer-lived token used to request a new access token.
+
+This pattern limits damage if an access token is leaked, because the access token expires quickly. Refresh tokens must be stored carefully and should be rotated when used.
+
+### Example Flow
+
+1. User logs in.
+2. Server returns an access token and refresh token.
+3. Client sends the access token when calling protected APIs.
+4. When the access token expires, the client uses the refresh token to request a new one.
+5. Server validates the refresh token, rotates it, and returns a new access token.
+
+---
+
+## Where Should Tokens Be Stored?
+
+There is no perfect storage option. Each choice has trade-offs.
+
+| Storage | Pros | Cons |
+|---------|------|------|
+| `HttpOnly` cookie | Not readable by JavaScript, helps reduce token theft through XSS | Needs CSRF protection when used for authentication |
+| Memory | Harder for attackers to persistently steal | Token disappears on refresh or tab close |
+| `localStorage` | Easy to use across page reloads | Readable by JavaScript, vulnerable if XSS exists |
+| `sessionStorage` | Cleared when the tab closes | Still readable by JavaScript |
+
+<Callout>
+  For browser applications, `HttpOnly`, `Secure`, `SameSite` cookies are often safer than storing long-lived tokens in JavaScript-accessible storage.
+</Callout>
+
+---
+
+## When to Use Each Approach
+
+### Use Session-Based Authentication When
+
+- Building a traditional server-rendered web application.
+- You want simple logout and immediate session revocation.
+- Your backend can manage session storage reliably.
+- Most requests come from browsers.
+
+### Use Token-Based Authentication When
+
+- Building APIs consumed by web, mobile, or third-party clients.
+- Multiple services need to validate authentication.
+- You need short-lived access tokens with scoped permissions.
+- You are using OAuth 2.0 or OpenID Connect flows.
+
+---
+
+## Best Practices
+
+1. Always use HTTPS.
+2. Store passwords using a strong password hashing algorithm such as bcrypt, scrypt, or Argon2.
+3. Use `HttpOnly`, `Secure`, and `SameSite` for authentication cookies.
+4. Keep access tokens short-lived.
+5. Rotate refresh tokens and revoke old refresh tokens.
+6. Validate token signatures, issuer, audience, and expiry.
+7. Do not store sensitive information in token payloads.
+8. Protect cookie-based authentication from CSRF.
+9. Protect all authentication flows from XSS.
+
+---
+
+## Conclusion
+
+Session-based authentication and token-based authentication are both widely used. Session-based authentication keeps login state on the server and is often a good fit for traditional web applications. Token-based authentication moves authentication proof into tokens and is often useful for APIs, mobile apps, and distributed systems.
+
+The best choice depends on the application architecture, client type, security needs, and how much control you need over revocation and session state.
+
+---
+
+## References
+
+[JWT Introduction](https://jwt.io/introduction)
+
+[MDN: HTTP Cookies](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Cookies)
+
+[OWASP: Session Management Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html)
+
+[OWASP: JSON Web Token for Java Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/JSON_Web_Token_for_Java_Cheat_Sheet.html)
