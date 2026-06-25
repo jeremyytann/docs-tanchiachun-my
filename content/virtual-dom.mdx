@@ -17,6 +17,23 @@ The **Virtual DOM** is a programming concept that improves the performance of UI
 
 ---
 
+## Where is the Virtual DOM Stored?
+The Virtual DOM is stored **in memory as JavaScript objects**, not in the browser's actual DOM, `localStorage`, `sessionStorage`, or any external database.
+
+In React, this in-memory representation is managed internally through React's **Fiber tree**. Each Fiber node represents a piece of the UI, such as a component or DOM element, and stores information like:
+
+- The component type
+- Current props and state
+- Child, sibling, and parent relationships
+- The real DOM node React may need to update
+- Work React still needs to perform during rendering
+
+React keeps track of the current UI tree and builds an updated version when state or props change. During reconciliation, React compares the new in-memory representation with the previous one, determines what changed, and then commits only the necessary updates to the real DOM.
+
+So, when people say React "stores the Virtual DOM," they usually mean React keeps this UI representation inside the JavaScript runtime's memory while the application is running.
+
+___
+
 ## Benefits of the Virtual DOM
 - **Efficient updates:** React updates the UI efficiently by using the Virtual DOM as an intermediary.
 - **Minimized DOM manipulation:** Only necessary changes are applied to the real DOM, reducing performance bottlenecks.
