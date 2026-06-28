@@ -1,0 +1,203 @@
+---
+title: "Feature Flags"
+description: "Learn what feature flags are, how they help teams release safely, common flag types, implementation patterns, and best practices."
+tags: ["feature flags", "deployment", "release management", "software engineering"]
+---
+
+## What are Feature Flags?
+
+**Feature flags**, also known as **feature toggles**, are a technique for turning application behavior on or off without deploying new code.
+
+Instead of keeping unfinished or risky work out of the codebase, teams can merge the code behind a flag and control when it becomes visible to users.
+
+```js
+if (featureFlags.newCheckoutFlow) {
+  return <NewCheckout />;
+}
+
+return <OldCheckout />;
+```
+
+Feature flags help separate **deployment** from **release**:
+
+* **Deployment** means shipping code to an environment.
+* **Release** means making a feature available to users.
+
+---
+
+## Why Feature Flags Matter
+
+Feature flags are useful because they give teams more control over change.
+
+* **Safer releases:** Roll out a feature gradually instead of exposing it to everyone at once.
+* **Fast rollback:** Disable a problematic feature without redeploying.
+* **Continuous delivery:** Merge incomplete work safely while keeping it hidden.
+* **Experimentation:** Run A/B tests or compare behavior between user groups.
+* **Targeted access:** Enable features for internal users, beta testers, or specific customers.
+
+---
+
+## Common Types of Feature Flags
+
+### 1. Release Flags
+
+Used to hide new functionality until the team is ready to release it.
+
+**Example:** A new dashboard is deployed to production but only enabled for internal testing.
+
+### 2. Experiment Flags
+
+Used for A/B testing or product experiments.
+
+**Example:** Showing two versions of a signup flow to measure which one converts better.
+
+### 3. Operational Flags
+
+Used to control system behavior during incidents or high traffic.
+
+**Example:** Disabling expensive recommendations when the system is under heavy load.
+
+### 4. Permission Flags
+
+Used to enable functionality for specific users, roles, plans, or organizations.
+
+**Example:** Enabling an advanced analytics page only for enterprise customers.
+
+---
+
+## How Feature Flags Work
+
+A feature flag usually has three parts:
+
+1. **Flag definition**. The name, default value, description, and ownership of the flag.
+
+2. **Flag evaluation**. Logic that decides whether the flag is enabled for the current request, user, or environment.
+
+3. **Flag usage**. Conditional code that changes application behavior based on the flag value.
+
+```js
+const isEnabled = await featureFlagClient.isEnabled('new-checkout-flow', {
+  userId: user.id,
+  country: user.country,
+  plan: user.plan,
+});
+
+if (isEnabled) {
+  showNewCheckoutFlow();
+} else {
+  showOldCheckoutFlow();
+}
+```
+
+---
+
+## Rollout Strategies
+
+| **Strategy** | **How It Works** | **Best For** |
+| --- | --- | --- |
+| **On / Off** | Enable or disable the feature globally | Simple releases |
+| **Percentage Rollout** | Enable the feature for a percentage of users | Gradual launches |
+| **User Targeting** | Enable the feature for specific users or accounts | Beta testing |
+| **Segment Targeting** | Enable based on region, plan, device, or role | Controlled access |
+| **Environment Targeting** | Enable in development, staging, or production separately | Testing before release |
+
+---
+
+## Example: React Feature Flag
+
+```jsx
+function CheckoutPage({ flags }) {
+  if (flags.newCheckoutFlow) {
+    return <NewCheckoutPage />;
+  }
+
+  return <LegacyCheckoutPage />;
+}
+```
+
+For more complex applications, flags are often loaded from a remote configuration service instead of being hardcoded.
+
+```js
+const flags = {
+  newCheckoutFlow: true,
+  recommendations: false,
+  betaProfilePage: user.email.endsWith('@example.com'),
+};
+```
+
+---
+
+## Feature Flag Lifecycle
+
+Feature flags should be treated as temporary code unless they are permanent configuration or permission controls.
+
+### 1. Create the Flag
+
+Define the flag name, owner, purpose, default value, and expected removal date.
+
+### 2. Implement Behind the Flag
+
+Wrap the new behavior with the flag while keeping the existing behavior available.
+
+### 3. Test Both Paths
+
+Test what happens when the flag is enabled and disabled.
+
+### 4. Roll Out Gradually
+
+Start with internal users, then beta users, then a small production percentage, and finally everyone.
+
+### 5. Remove the Flag
+
+After the feature is stable, delete the old code path and remove the flag configuration.
+
+---
+
+## Best Practices
+
+* **Use clear names:** Prefer names like `new-checkout-flow` over vague names like `flag-1`.
+* **Set safe defaults:** Default to the lower-risk behavior when flag data is unavailable.
+* **Assign ownership:** Every flag should have a team or person responsible for it.
+* **Keep flags short-lived:** Remove release flags after rollout to avoid long-term complexity.
+* **Monitor metrics:** Watch errors, latency, conversion, and user behavior during rollout.
+* **Avoid deep nesting:** Too many flag combinations make behavior difficult to reason about.
+* **Document intent:** Record why the flag exists and when it should be removed.
+
+---
+
+## Common Pitfalls
+
+### Flag Debt
+
+Old flags can become a form of technical debt. They leave unused branches in the codebase and make testing harder.
+
+### Inconsistent Behavior
+
+If different services evaluate flags differently, users may see broken or mismatched experiences.
+
+### Missing Fallbacks
+
+If the flag provider is unavailable, the application should still behave predictably.
+
+### Overusing Flags
+
+Not every condition needs a feature flag. Some behavior is better modeled as permissions, configuration, or normal application state.
+
+---
+
+## Feature Flags vs Configuration
+
+| **Feature Flags** | **Configuration** |
+| --- | --- |
+| Usually controls product or code behavior | Usually controls environment or system settings |
+| Often temporary | Often long-lived |
+| Frequently targeted to users or groups | Usually applied by environment or service |
+| Used for rollout, experiments, and rollback | Used for setup, limits, credentials, and defaults |
+
+---
+
+## Conclusion
+
+Feature flags are a powerful way to release software safely. They allow teams to deploy code early, release features gradually, test with real users, and recover quickly when something goes wrong.
+
+Used carefully, feature flags improve reliability and delivery speed. Used carelessly, they create hidden complexity. The key is to manage each flag through its full lifecycle: create it intentionally, monitor it during rollout, and remove it when it is no longer needed.
