@@ -74,6 +74,7 @@
     "distributed-caching",
     "monolith-and-microservices",
     "semantic-versioning-and-changelogs",
-    "technical-debt"
+    "technical-debt",
+    "webhooks"
   ]
 }

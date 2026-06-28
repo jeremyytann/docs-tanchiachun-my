@@ -1,0 +1,391 @@
+---
+title: "Webhooks"
+description: "A practical guide to receiving, verifying, processing, and retrying webhooks safely in backend systems."
+tags: ["Backend", "API", "Webhooks", "Security", "System Design"]
+---
+
+## Introduction
+
+Webhooks are a common way for external services to notify your backend when something happens.
+
+Instead of your application repeatedly asking another service for updates, the external service sends an HTTP request to your application.
+
+Common examples include:
+
+* Stripe sending a payment success event
+* GitHub sending a push event
+* Clerk sending a user created event
+* Shopify sending an order created event
+* A CRM sending a lead updated event
+
+Webhooks are especially useful for asynchronous workflows where the final result may happen later than the original user action.
+
+---
+
+## What Is a Webhook?
+
+A webhook is an HTTP callback triggered by an event.
+
+In simple terms:
+
+```text
+External Service ---> HTTP POST ---> Your Backend
+```
+
+For example, when a customer completes a payment, Stripe can send a request like this to your backend:
+
+```http
+POST /api/webhooks/stripe HTTP/1.1
+Content-Type: application/json
+Stripe-Signature: t=...,v1=...
+
+{
+  "id": "evt_123",
+  "type": "payment_intent.succeeded",
+  "data": {
+    "object": {
+      "id": "pi_123"
+    }
+  }
+}
+```
+
+Your backend receives the event, verifies that it is real, and then performs the required action.
+
+---
+
+## Why Webhooks Matter
+
+Webhooks help backend systems react to events without constant polling.
+
+They are useful because:
+
+* **Lower latency:** Your backend receives updates shortly after the event happens.
+* **Less traffic:** You avoid repeatedly calling an API just to check if something changed.
+* **Better automation:** Systems can trigger workflows automatically.
+* **Reliable async handling:** Long-running processes can finish later and notify your backend.
+
+Without webhooks, applications often rely on polling, scheduled jobs, or manual refreshes, which can be slower and less efficient.
+
+---
+
+## Basic Webhook Flow
+
+Most webhook integrations follow this flow:
+
+1. Register a webhook URL in the provider dashboard.
+2. Provider sends an HTTP `POST` request when an event happens.
+3. Backend verifies the request signature.
+4. Backend stores or processes the event.
+5. Backend returns a `2xx` response quickly.
+6. Provider retries later if the request fails.
+
+### Example Flow
+
+```text
+User completes payment
+        |
+        v
+Payment provider creates event
+        |
+        v
+Provider sends webhook request
+        |
+        v
+Backend verifies signature
+        |
+        v
+Backend records event and updates order
+        |
+        v
+Backend returns 200 OK
+```
+
+---
+
+## Backend Webhook Endpoint Example
+
+In a Next.js App Router project, a webhook endpoint can be implemented using a route handler.
+
+```ts
+// app/api/webhooks/payment/route.ts
+export async function POST(request: Request) {
+  const payload = await request.json();
+
+  if (payload.type === "payment.succeeded") {
+    const payment = payload.data.object;
+
+    // Update order status, unlock access, send receipt, etc.
+    console.log("Payment succeeded:", payment.id);
+  }
+
+  return Response.json({ received: true });
+}
+```
+
+This is the simplest version. In production, a webhook handler should also verify signatures, handle duplicate events, and return quickly.
+
+---
+
+## Verify Webhook Signatures
+
+Never trust webhook requests just because they reach your endpoint.
+
+Webhook URLs are public, so attackers can send fake requests unless the backend verifies that the request really came from the expected provider.
+
+Most providers sign webhook requests using a shared secret.
+
+### Common Signature Verification Flow
+
+1. Read the raw request body.
+2. Read the signature header.
+3. Recalculate the signature using the webhook secret.
+4. Compare the calculated signature with the received signature.
+5. Reject the request if the signature is invalid.
+
+### Important
+
+Many providers require the **raw request body** for signature verification.
+
+If the backend parses JSON before verification, the signature may fail because whitespace, encoding, or body formatting can change.
+
+### Example: Raw Body Pattern
+
+```ts
+export async function POST(request: Request) {
+  const rawBody = await request.text();
+  const signature = request.headers.get("webhook-signature");
+
+  const isValid = verifyWebhookSignature({
+    rawBody,
+    signature,
+    secret: process.env.WEBHOOK_SECRET,
+  });
+
+  if (!isValid) {
+    return Response.json({ error: "Invalid signature" }, { status: 401 });
+  }
+
+  const event = JSON.parse(rawBody);
+
+  return Response.json({ received: true });
+}
+```
+
+`verifyWebhookSignature` is provider-specific. For services like Stripe, GitHub, Clerk, and Shopify, use the official SDK or documented signature verification method.
+
+---
+
+## Handle Duplicate Events
+
+Webhook providers usually retry failed deliveries. Sometimes they may also send the same event more than once.
+
+Because of this, webhook handlers should be **idempotent**.
+
+That means processing the same event multiple times should have the same effect as processing it once.
+
+### Example
+
+If the same `payment.succeeded` event arrives twice, the backend should not:
+
+* create two orders
+* send two receipts
+* grant the same credit twice
+* trigger duplicate fulfillment
+
+### Common Deduplication Strategy
+
+Store the webhook event ID before processing:
+
+```ts
+async function handleWebhookEvent(event: WebhookEvent) {
+  const alreadyProcessed = await db.webhookEvent.findUnique({
+    where: { eventId: event.id },
+  });
+
+  if (alreadyProcessed) {
+    return;
+  }
+
+  await db.webhookEvent.create({
+    data: {
+      eventId: event.id,
+      type: event.type,
+      receivedAt: new Date(),
+    },
+  });
+
+  await processEvent(event);
+}
+```
+
+The database should enforce uniqueness on `eventId` so race conditions cannot process the same event twice.
+
+---
+
+## Return Quickly
+
+Webhook endpoints should return a successful response as soon as the event has been safely received.
+
+Avoid doing slow work directly inside the request lifecycle.
+
+### Better Pattern
+
+1. Verify the signature.
+2. Store the event.
+3. Push a job to a queue.
+4. Return `200 OK`.
+5. Process the event asynchronously.
+
+```text
+Webhook request
+      |
+      v
+Verify and store event
+      |
+      v
+Queue background job
+      |
+      v
+Return 200 OK
+      |
+      v
+Worker processes event
+```
+
+This prevents timeouts and makes the system more resilient when external APIs, emails, or database operations are slow.
+
+---
+
+## Retry Behavior
+
+Most webhook providers retry delivery when your endpoint returns a non-`2xx` status code or times out.
+
+This is helpful, but it also means your backend must be prepared for repeated delivery attempts.
+
+### Safe Retry Rules
+
+* Return `2xx` only after the event is safely stored or processed.
+* Return `400` for invalid payloads or invalid signatures.
+* Return `500` only when the provider should retry later.
+* Make handlers idempotent so retries do not duplicate side effects.
+* Log failed events for debugging and replay.
+
+---
+
+## Security Best Practices
+
+Webhook endpoints are public backend endpoints, so they need defensive handling.
+
+### Verify the Sender
+
+Always verify the provider signature before trusting the payload.
+
+### Use HTTPS
+
+Production webhook URLs should use HTTPS so payloads and signatures are protected in transit.
+
+### Keep Secrets Server-Side
+
+Webhook secrets must be stored in environment variables or a secret manager.
+
+Never expose webhook secrets in frontend code.
+
+### Validate the Event Type
+
+Only handle event types your system expects.
+
+```ts
+switch (event.type) {
+  case "payment.succeeded":
+    await handlePaymentSucceeded(event);
+    break;
+
+  case "payment.failed":
+    await handlePaymentFailed(event);
+    break;
+
+  default:
+    console.log("Unhandled event type:", event.type);
+}
+```
+
+### Avoid Trusting Client Data
+
+Do not blindly trust prices, user IDs, order IDs, or permissions from the webhook payload.
+
+When needed, fetch the latest resource from the provider API or cross-check the event with your own database.
+
+---
+
+## Webhooks vs Polling
+
+| Feature | Webhooks | Polling |
+|--------|----------|---------|
+| Direction | Provider pushes data to your backend | Your backend repeatedly requests data |
+| Latency | Usually low | Depends on polling interval |
+| Traffic | Efficient | Can create many unnecessary requests |
+| Complexity | Requires public endpoint and signature verification | Simpler but less efficient |
+| Reliability | Requires retries and idempotency | Easier to control from your own system |
+
+Use **webhooks** when the provider supports event notifications and your backend needs near-realtime updates.
+
+Use **polling** when webhooks are unavailable, unreliable, or when your system needs full control over synchronization timing.
+
+---
+
+## Common Pitfalls
+
+### Parsing the Body Before Signature Verification
+
+Many signature systems require the exact raw body. Parse the JSON only after verification.
+
+### Doing Too Much Work in the Webhook Request
+
+Slow operations can cause provider timeouts and repeated retries.
+
+### Ignoring Duplicate Events
+
+Retries and duplicate deliveries are normal. Design webhook handlers to be idempotent.
+
+### Returning `200 OK` Too Early
+
+If you return success before storing the event, the provider may consider the event delivered even if your processing fails.
+
+### Treating Webhooks as User Requests
+
+Webhooks come from machines, not users. They should be authenticated, logged, rate limited, and processed with backend-safe assumptions.
+
+---
+
+## Best Practices Checklist
+
+* Use a dedicated endpoint for each provider.
+* Verify signatures with the raw request body.
+* Store received event IDs for deduplication.
+* Make processing idempotent.
+* Return `2xx` only after safe receipt.
+* Move slow work to background jobs.
+* Log event IDs, event types, and processing status.
+* Monitor webhook failures and retries.
+* Keep webhook secrets out of frontend code.
+
+---
+
+## Conclusion
+
+Webhooks are an important backend pattern for event-driven systems.
+
+They let external services notify your application when something meaningful happens, such as a payment succeeding, a repository receiving a push, or a user account being created.
+
+A reliable webhook implementation should verify the sender, preserve the raw body for signature checks, handle retries safely, deduplicate events, and move slow work into background jobs.
+
+When designed carefully, webhooks make backend systems more responsive, automated, and resilient.
+
+---
+
+## References
+
+[GitHub Docs: Webhooks](https://docs.github.com/en/webhooks)
+
+[Stripe Docs: Webhooks](https://docs.stripe.com/webhooks)
