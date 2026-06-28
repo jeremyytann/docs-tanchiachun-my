@@ -1,0 +1,258 @@
+---
+title: "Frontend Accessibility"
+description: "Practical accessibility practices for building usable, inclusive frontend interfaces."
+tags: [Frontend, Accessibility, HTML, CSS, ARIA, Web Development]
+---
+
+## What is Frontend Accessibility?
+
+Frontend accessibility means designing and building interfaces that can be used by as many people as possible, including users who rely on keyboards, screen readers, voice control, zoom, captions, or reduced motion settings.
+
+Accessibility is not only about disability support. It also improves usability for people on small screens, slow devices, bright environments, temporary injuries, or different input methods.
+
+---
+
+## Why Accessibility Matters
+
+### 1. Better User Experience
+Accessible interfaces are easier to navigate, read, understand, and interact with.
+
+### 2. Inclusive Product Design
+Accessibility helps avoid excluding users based on vision, hearing, motor ability, cognition, device, or environment.
+
+### 3. Cleaner Frontend Architecture
+Good accessibility often comes from clear structure: semantic HTML, predictable focus, meaningful labels, and simple interaction patterns.
+
+### 4. Legal and Compliance Requirements
+Many teams follow accessibility standards such as WCAG to reduce compliance risk and create more reliable user experiences.
+
+---
+
+## Core Accessibility Principles
+
+| Principle | Meaning | Frontend Example |
+|-----------|---------|------------------|
+| Perceivable | Users can access the information | Text alternatives for images, readable contrast, captions |
+| Operable | Users can interact with the interface | Keyboard support, visible focus, no keyboard traps |
+| Understandable | Users can understand the content and behavior | Clear labels, helpful errors, consistent navigation |
+| Robust | The interface works with different tools | Semantic HTML, valid markup, correct ARIA usage |
+
+---
+
+## Use Semantic HTML First
+
+Semantic HTML gives browsers and assistive technologies a meaningful structure to work with.
+
+Prefer built-in elements whenever possible:
+
+```html
+<button type="button">Save changes</button>
+
+<nav aria-label="Main navigation">
+  <a href="/docs">Docs</a>
+  <a href="/blog">Blog</a>
+</nav>
+
+<main>
+  <h1>Account Settings</h1>
+  <section>
+    <h2>Profile</h2>
+  </section>
+</main>
+```
+
+Avoid replacing semantic elements with clickable `<div>` or `<span>` elements:
+
+```html
+<!-- Avoid -->
+<div onclick="submitForm()">Submit</div>
+
+<!-- Prefer -->
+<button type="submit">Submit</button>
+```
+
+Native elements already include important behavior such as keyboard support, focus handling, and expected browser semantics.
+
+---
+
+## Keyboard Accessibility
+
+Many users navigate with a keyboard instead of a mouse. Interactive elements should be reachable and usable with `Tab`, `Enter`, `Space`, and arrow keys when appropriate.
+
+### Best Practices
+
+- Make all interactive controls focusable.
+- Keep focus order logical and close to the visual order.
+- Never remove focus styles without replacing them.
+- Avoid keyboard traps inside modals, menus, or custom widgets.
+- Use real buttons and links for actions and navigation.
+
+```css
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid #2563eb;
+  outline-offset: 3px;
+}
+```
+
+<Callout>
+  If a feature cannot be completed with only a keyboard, it is not fully accessible.
+</Callout>
+
+---
+
+## Forms and Labels
+
+Forms should clearly explain what each field means, what is required, and how to fix errors.
+
+```html
+<label for="email">Email address</label>
+<input
+  id="email"
+  name="email"
+  type="email"
+  autocomplete="email"
+  aria-describedby="email-error"
+/>
+<p id="email-error">Enter a valid email address.</p>
+```
+
+### Form Best Practices
+
+- Use visible labels instead of relying only on placeholders.
+- Connect labels to inputs with `for` and `id`.
+- Explain errors near the field that caused them.
+- Use `autocomplete` for common personal information fields.
+- Do not rely on color alone to show validation states.
+
+---
+
+## ARIA: Use Carefully
+
+ARIA attributes can improve accessibility when native HTML is not enough, but they should not be the first choice.
+
+### Good ARIA Usage
+
+```html
+<button
+  type="button"
+  aria-expanded="false"
+  aria-controls="settings-menu"
+>
+  Settings
+</button>
+
+<div id="settings-menu" hidden>
+  <a href="/profile">Profile</a>
+  <a href="/billing">Billing</a>
+</div>
+```
+
+### ARIA Rules to Remember
+
+- Prefer semantic HTML before adding ARIA.
+- Do not add roles that conflict with native element behavior.
+- Keep ARIA states updated when the UI changes.
+- Use `aria-label` only when visible text is not available.
+- Test ARIA patterns with a screen reader when possible.
+
+---
+
+## Images, Icons, and Media
+
+Images and media should provide equivalent information for users who cannot see or hear them.
+
+```html
+<img
+  src="/product-dashboard.png"
+  alt="Dashboard showing revenue, active users, and conversion rate cards"
+/>
+
+<img src="/decorative-divider.png" alt="" />
+```
+
+### Media Best Practices
+
+- Use descriptive `alt` text for meaningful images.
+- Use empty `alt=""` for decorative images.
+- Provide captions or transcripts for audio and video.
+- Make icon-only buttons accessible with visible text or `aria-label`.
+
+```html
+<button type="button" aria-label="Close dialog">
+  <svg aria-hidden="true">...</svg>
+</button>
+```
+
+---
+
+## Color, Contrast, and Motion
+
+Readable interfaces need enough contrast and should not depend on color alone.
+
+```css
+.error-message {
+  color: #b91c1c;
+}
+
+.error-field {
+  border-color: #b91c1c;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+```
+
+### Design Best Practices
+
+- Ensure text has enough contrast against its background.
+- Pair color with text, icons, or patterns for status messages.
+- Avoid tiny text and cramped touch targets.
+- Respect `prefers-reduced-motion` for animations and transitions.
+- Make zoomed layouts work without horizontal scrolling.
+
+---
+
+## Testing Accessibility
+
+Accessibility testing should include both automated checks and manual review.
+
+### Quick Testing Checklist
+
+- Navigate the page using only the keyboard.
+- Check that focus is always visible.
+- Confirm every form input has a label.
+- Run Lighthouse or axe DevTools for common issues.
+- Test with browser zoom at 200%.
+- Try a screen reader for key flows.
+- Check that dynamic updates are announced when necessary.
+
+Automated tools are helpful, but they cannot fully understand whether the experience makes sense to a real user.
+
+---
+
+## Common Accessibility Mistakes
+
+| Mistake | Better Approach |
+|---------|-----------------|
+| Using clickable `<div>` elements | Use `<button>` or `<a>` |
+| Removing outlines globally | Use custom `:focus-visible` styles |
+| Placeholder-only form labels | Use visible `<label>` elements |
+| Icon buttons without names | Add visible text or `aria-label` |
+| Color-only error states | Add text and semantic error messages |
+| Custom dropdowns without keyboard support | Use native `<select>` or a tested accessible pattern |
+| Images with vague alt text | Describe the purpose or content of the image |
+
+---
+
+## Conclusion
+
+Frontend accessibility is a practical part of building high-quality interfaces. Start with semantic HTML, support keyboard navigation, write clear labels, use ARIA only when needed, and test real user flows.
+
+Accessible frontend work usually makes the product better for everyone, not only users with assistive technology.
