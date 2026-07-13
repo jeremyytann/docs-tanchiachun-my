@@ -25,6 +25,7 @@
     "---JavaScript---",
     "closures",
     "decorators",
+    "event-loop",
     "higher-order-functions",
     "mutable-and-immutable-objects",
     "promisify-with-recursion",
